@@ -1,7 +1,9 @@
 name: Test CI/CD Pipeline
 
 on:
-  workflow_dispatch:   # manual trigger
+  push:
+    branches:
+      - main   # auto trigger on push/merge to main
 
 jobs:
   test:
@@ -17,14 +19,24 @@ jobs:
     - name: List All Files
       run: ls -R
 
+    - name: Verify Apigee Proxy Exists
+      run: |
+        echo "Checking for Apigee proxy..."
+        if [ -d "hello-api/apiproxy" ]; then
+          echo "Proxy found ✅"
+        else
+          echo "Proxy NOT found ❌"
+          exit 1
+        fi
+
     - name: Simulate Build
       run: |
         echo "Building Apigee Proxy..."
         sleep 2
-        echo "Build completed successfully"
+        echo "Build completed successfully ✅"
 
     - name: Simulate Deployment
       run: |
         echo "Deploying proxy to Apigee..."
         sleep 2
-        echo "Deployment successful"
+        echo "Deployment successful 🚀"
