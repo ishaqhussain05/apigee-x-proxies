@@ -14,11 +14,11 @@ jobs:
       contents: read
 
     steps:
-    # 📥 Checkout
+    # 📥 Checkout code
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 🔍 Validate proxy
+    # 🔍 Validate proxy exists
     - name: Verify Apigee Proxy
       run: |
         if [ -d "hello-api/apiproxy" ]; then
@@ -28,7 +28,7 @@ jobs:
           exit 1
         fi
 
-    # 🔐 Authenticate (WIF)
+    # 🔐 Authenticate to GCP using WIF
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
@@ -39,17 +39,18 @@ jobs:
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@v2
 
-    # 🔧 Install tools
+    # 🔧 Install dependencies
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y jq zip
 
-    # 🔧 Install apigeecli
+    # 🔧 Install apigeecli (FIXED ✅)
     - name: Install apigeecli
       run: |
-        curl -L https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_Linux_x86_64.tar.gz -o apigeecli.tar.gz
-        tar -xvzf apigeecli.tar.gz
+        echo "Installing apigeecli..."
+        curl -L https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_linux_amd64 -o apigeecli
+        chmod +x apigeecli
         sudo mv apigeecli /usr/local/bin/
         apigeecli version
 
@@ -74,11 +75,11 @@ jobs:
 
         echo "Deployment successful 🚀"
 
-    # 🧪 Smoke test
+    # 🧪 Smoke test (⚠️ UPDATE DOMAIN)
     - name: Smoke Test API
       run: |
         echo "Running smoke test..."
 
-        curl -f https://YOUR_API_DOMAIN/v1/hello
+        curl -f https://136.110.222.127.nip.io/v1/hello
 
         echo "API is working ✅"
