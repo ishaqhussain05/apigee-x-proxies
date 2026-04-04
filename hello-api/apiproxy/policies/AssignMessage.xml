@@ -2,7 +2,7 @@
     <Set>
         <Payload contentType="application/json">
             {
-              "message": "Hello from feature Branch and update!"
+              "message": "Hello from feature Branch and update and org var changed !"
             }
         </Payload>
         <StatusCode>200</StatusCode>
