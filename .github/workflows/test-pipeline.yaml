@@ -1,4 +1,4 @@
-name: Apigee CI/CD (WIF - Production)
+name: Apigee CI/CD (WIF - Curl Deploy)
 
 on:
   push:
@@ -14,21 +14,11 @@ jobs:
       contents: read
 
     steps:
-    # 📥 Checkout code
+    # 📥 Checkout
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 🔍 Validate proxy exists
-    - name: Verify Apigee Proxy
-      run: |
-        if [ -d "hello-api/apiproxy" ]; then
-          echo "Proxy found ✅"
-        else
-          echo "Proxy not found ❌"
-          exit 1
-        fi
-
-    # 🔐 Authenticate using WIF
+    # 🔐 Authenticate via WIF
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
@@ -43,51 +33,33 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y jq zip
+        sudo apt-get install -y zip unzip
 
-    # 🔧 Install apigeecli (FIXED)
-    - name: Install apigeecli
+    # 📦 Zip proxy
+    - name: Zip Apigee Proxy
       run: |
-        echo "Installing apigeecli..."
+        cd hello-api
+        zip -r ../proxy.zip apiproxy
+        cd ..
 
-        curl -L -H "Accept: application/octet-stream" \
-        https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_linux_amd64 \
-        -o apigeecli
+        unzip -l proxy.zip
 
-        chmod +x apigeecli
-
-        file apigeecli
-
-        sudo mv apigeecli /usr/local/bin/
-
-        apigeecli version
-
-    # 🚀 Deploy proxy
-    - name: Deploy Apigee Proxy
+    # 🚀 Deploy to Apigee (NO CLI)
+    - name: Deploy to Apigee
       run: |
-        echo "Deploying hello-api..."
+        echo "Deploying proxy..."
 
-        TOKEN=$(gcloud auth print-access-token)
+        ACCESS_TOKEN=$(gcloud auth print-access-token)
 
-        apigeecli apis create bundle \
-          -n hello-api \
-          -p hello-api/apiproxy \
-          -o ${{ vars.APIGEE_ORG }} \
-          -t $TOKEN
+        curl -X POST \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
+          -H "Content-Type: application/octet-stream" \
+          "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
+          --data-binary "@proxy.zip"
 
-        apigeecli apis deploy \
-          -n hello-api \
-          -e ${{ vars.APIGEE_ENV }} \
-          -o ${{ vars.APIGEE_ORG }} \
-          -t $TOKEN
+        echo "Deployment done 🚀"
 
-        echo "Deployment successful 🚀"
-
-    # 🧪 Smoke test (UPDATE DOMAIN IF NEEDED)
-    - name: Smoke Test API
+    # 🧪 Smoke test
+    - name: Smoke Test
       run: |
-        echo "Running smoke test..."
-
         curl -f https://136.110.222.127.nip.io/v1/hello
-
-        echo "API is working ✅"
