@@ -1,4 +1,4 @@
-name: Apigee CI/CD Pipeline
+name: Apigee CI/CD (WIF - Production)
 
 on:
   push:
@@ -9,50 +9,76 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    permissions:
+      id-token: write
+      contents: read
 
-    - name: Verify Apigee Proxy Exists
+    steps:
+    # 📥 Checkout
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 🔍 Validate proxy
+    - name: Verify Apigee Proxy
       run: |
-        echo "Checking for Apigee proxy..."
         if [ -d "hello-api/apiproxy" ]; then
           echo "Proxy found ✅"
         else
-          echo "Proxy NOT found ❌"
+          echo "Proxy not found ❌"
           exit 1
         fi
 
-    # 🔥 Step 1: Install apigeecli
+    # 🔐 Authenticate (WIF)
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+    # ☁️ Setup gcloud
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+
+    # 🔧 Install tools
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq zip
+
+    # 🔧 Install apigeecli
     - name: Install apigeecli
       run: |
-        echo "Installing apigeecli..."
         curl -L https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_Linux_x86_64.tar.gz -o apigeecli.tar.gz
         tar -xvzf apigeecli.tar.gz
         sudo mv apigeecli /usr/local/bin/
         apigeecli version
 
-    # 🔐 Step 2: Authenticate (will work after SA is added)
-    - name: Authenticate to GCP
-      run: |
-        echo '${{ secrets.GCP_SA_KEY }}' > key.json
-        gcloud auth activate-service-account --key-file=key.json
-        gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
-
-    # 🚀 Step 3: Deploy Proxy (REAL COMMAND)
+    # 🚀 Deploy proxy
     - name: Deploy Apigee Proxy
       run: |
-        echo "Deploying proxy..."
+        echo "Deploying hello-api..."
+
+        TOKEN=$(gcloud auth print-access-token)
+
         apigeecli apis create bundle \
           -n hello-api \
           -p hello-api/apiproxy \
-          -o ${{ secrets.APIGEE_ORG }} \
-          -t $(gcloud auth print-access-token)
+          -o ${{ vars.APIGEE_ORG }} \
+          -t $TOKEN
 
         apigeecli apis deploy \
           -n hello-api \
-          -e ${{ secrets.APIGEE_ENV }} \
-          -o ${{ secrets.APIGEE_ORG }} \
-          -t $(gcloud auth print-access-token)
+          -e ${{ vars.APIGEE_ENV }} \
+          -o ${{ vars.APIGEE_ORG }} \
+          -t $TOKEN
 
-        echo "Deployment completed 🚀"
+        echo "Deployment successful 🚀"
+
+    # 🧪 Smoke test
+    - name: Smoke Test API
+      run: |
+        echo "Running smoke test..."
+
+        curl -f https://YOUR_API_DOMAIN/v1/hello
+
+        echo "API is working ✅"
