@@ -24,4 +24,4 @@
       -H "Authorization: Bearer $ACCESS_TOKEN" \
       "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments"
 
-    echo "Deployment successful 🚀"
+    echo "Deployment successfull 🚀"
