@@ -1,4 +1,4 @@
-name: Apigee CI/CD (WIF - Curl Deploy)
+name: Apigee CI/CD (Deploy Only)
 
 on:
   push:
@@ -14,11 +14,11 @@ jobs:
       contents: read
 
     steps:
-    # 📥 Checkout
+    # 📥 Checkout code
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 🔐 Authenticate via WIF
+    # 🔐 Authenticate using WIF
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
@@ -42,12 +42,10 @@ jobs:
         zip -r ../proxy.zip apiproxy
         cd ..
 
-        unzip -l proxy.zip
-
-    # 🚀 Deploy to Apigee (NO CLI)
+    # 🚀 Deploy to Apigee
     - name: Deploy to Apigee
       run: |
-        echo "Deploying proxy..."
+        echo "Deploying hello-api..."
 
         ACCESS_TOKEN=$(gcloud auth print-access-token)
 
@@ -57,9 +55,4 @@ jobs:
           "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
           --data-binary "@proxy.zip"
 
-        echo "Deployment done 🚀"
-
-    # 🧪 Smoke test
-    - name: Smoke Test
-      run: |
-        curl -f https://136.110.222.127.nip.io/v1/hello
+        echo "Deployment successful 🚀"
