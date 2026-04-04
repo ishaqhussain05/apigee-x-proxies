@@ -28,7 +28,7 @@ jobs:
           exit 1
         fi
 
-    # 🔐 Authenticate to GCP using WIF
+    # 🔐 Authenticate using WIF
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
@@ -45,13 +45,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y jq zip
 
-    # 🔧 Install apigeecli (FIXED ✅)
+    # 🔧 Install apigeecli (FIXED)
     - name: Install apigeecli
       run: |
         echo "Installing apigeecli..."
-        curl -L https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_linux_amd64 -o apigeecli
+
+        curl -L -H "Accept: application/octet-stream" \
+        https://github.com/apigee/apigeecli/releases/latest/download/apigeecli_linux_amd64 \
+        -o apigeecli
+
         chmod +x apigeecli
+
+        file apigeecli
+
         sudo mv apigeecli /usr/local/bin/
+
         apigeecli version
 
     # 🚀 Deploy proxy
@@ -75,7 +83,7 @@ jobs:
 
         echo "Deployment successful 🚀"
 
-    # 🧪 Smoke test (⚠️ UPDATE DOMAIN)
+    # 🧪 Smoke test (UPDATE DOMAIN IF NEEDED)
     - name: Smoke Test API
       run: |
         echo "Running smoke test..."
