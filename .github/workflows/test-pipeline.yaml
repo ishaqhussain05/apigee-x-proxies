@@ -1,58 +1,27 @@
-name: Apigee CI/CD (Deploy Only)
+- name: Deploy to Apigee
+  run: |
+    echo "Deploying hello-api..."
 
-on:
-  push:
-    branches:
-      - main
+    ACCESS_TOKEN=$(gcloud auth print-access-token)
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+    # Step 1: Import proxy
+    RESPONSE=$(curl -s -X POST \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
+      -H "Content-Type: application/octet-stream" \
+      "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
+      --data-binary "@proxy.zip")
 
-    permissions:
-      id-token: write
-      contents: read
+    echo "Import response:"
+    echo $RESPONSE
 
-    steps:
-    # 📥 Checkout code
-    - name: Checkout Code
-      uses: actions/checkout@v4
+    # Step 2: Extract revision
+    REVISION=$(echo $RESPONSE | jq -r '.revision')
 
-    # 🔐 Authenticate using WIF
-    - name: Authenticate to GCP
-      uses: google-github-actions/auth@v2
-      with:
-        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    echo "Revision: $REVISION"
 
-    # ☁️ Setup gcloud
-    - name: Setup gcloud
-      uses: google-github-actions/setup-gcloud@v2
+    # Step 3: Deploy revision
+    curl -X POST \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
+      "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments"
 
-    # 🔧 Install dependencies
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y zip unzip
-
-    # 📦 Zip proxy
-    - name: Zip Apigee Proxy
-      run: |
-        cd hello-api
-        zip -r ../proxy.zip apiproxy
-        cd ..
-
-    # 🚀 Deploy to Apigee
-    - name: Deploy to Apigee
-      run: |
-        echo "Deploying hello-api..."
-
-        ACCESS_TOKEN=$(gcloud auth print-access-token)
-
-        curl -X POST \
-          -H "Authorization: Bearer $ACCESS_TOKEN" \
-          -H "Content-Type: application/octet-stream" \
-          "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
-          --data-binary "@proxy.zip"
-
-        echo "Deployment successful 🚀"
+    echo "Deployment successful 🚀"
