@@ -1,27 +1,80 @@
-- name: Deploy to Apigee
-  run: |
-    echo "Deploying hello-api..."
+name: Apigee CI/CD (Final Deploy)
 
-    ACCESS_TOKEN=$(gcloud auth print-access-token)
+on:
+  push:
+    branches:
+      - main
 
-    # Step 1: Import proxy
-    RESPONSE=$(curl -s -X POST \
-      -H "Authorization: Bearer $ACCESS_TOKEN" \
-      -H "Content-Type: application/octet-stream" \
-      "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
-      --data-binary "@proxy.zip")
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-    echo "Import response:"
-    echo $RESPONSE
+    permissions:
+      id-token: write
+      contents: read
 
-    # Step 2: Extract revision
-    REVISION=$(echo $RESPONSE | jq -r '.revision')
+    steps:
+      # 📥 Checkout
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    echo "Revision: $REVISION"
+      # 🔐 Authenticate (WIF)
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-    # Step 3: Deploy revision
-    curl -X POST \
-      -H "Authorization: Bearer $ACCESS_TOKEN" \
-      "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments"
+      # ☁️ Setup gcloud
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-    echo "Deployment successfull 🚀"
+      # 🔧 Install tools
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip jq
+
+      # 📦 Zip proxy
+      - name: Zip Apigee Proxy
+        run: |
+          cd hello-api
+          zip -r ../proxy.zip apiproxy
+          cd ..
+
+      # 🚀 Import + Deploy
+      - name: Deploy to Apigee
+        run: |
+          echo "Starting deployment..."
+
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+
+          # IMPORT
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/apis?action=import&name=hello-api" \
+            --data-binary "@proxy.zip")
+
+          echo "Import Response:"
+          echo "$RESPONSE"
+
+          # EXTRACT REVISION
+          REVISION=$(echo "$RESPONSE" | jq -r '.revision')
+
+          if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
+            echo "Failed to get revision ❌"
+            exit 1
+          fi
+
+          echo "Revision: $REVISION"
+
+          # DEPLOY
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments")
+
+          echo "Deploy Response:"
+          echo "$DEPLOY_RESPONSE"
+
+          echo "Deployment successful 🚀"
