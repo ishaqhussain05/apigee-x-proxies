@@ -4,7 +4,9 @@ kvms:
     entries:
       - name: greeting.message
         value: Hello from PROD 🚀
+
       - name: api.version
+        value: v1
 
   # 🔐 New Encrypted KVM
   - name: hello-secrets
