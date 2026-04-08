@@ -1,0 +1,73 @@
+name: Deploy Apigee Config (KVM + Target Server)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-config:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # 📥 Checkout Repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 🔐 Authenticate to GCP using WIF
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # ☁️ Setup gcloud CLI
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 🔑 Get Access Token
+      - name: Get Access Token
+        run: echo "ACCESS_TOKEN=$(gcloud auth print-access-token)" >> $GITHUB_ENV
+
+      # 🔥 Create KVM (safe if already exists)
+      - name: Create KVM
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps" \
+            -d '{"name":"hello-config"}' \
+          || echo "KVM already exists"
+
+      # 🔥 Add KVM Entry
+      - name: Add KVM Entry
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps/hello-config/entries" \
+            -d '{"name":"greeting.message","value":"Hello from PROD 🚀"}' \
+          || echo "KVM entry already exists"
+
+      # 🌐 Create Target Server
+      - name: Create Target Server
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/targetservers" \
+            -d '{
+              "name":"hello-backend-ts",
+              "host":"mocktarget.apigee.net",
+              "port":443,
+              "isEnabled":true
+            }' \
+          || echo "Target server already exists"
+
+      # ✅ Done
+      - name: Done
+        run: echo "✅ Apigee Config Deployment Completed"
