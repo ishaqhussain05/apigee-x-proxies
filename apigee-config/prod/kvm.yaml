@@ -4,3 +4,14 @@ kvms:
     entries:
       - name: greeting.message
         value: Hello from PROD 🚀
+      - name: api.version
+
+  # 🔐 New Encrypted KVM
+  - name: hello-secrets
+    encrypted: true
+    entries:
+      - name: api.key
+        value: super-secret-key-123
+
+      - name: db.password
+        value: my-db-password
