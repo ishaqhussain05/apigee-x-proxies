@@ -1,0 +1,6 @@
+kvms:
+  - name: hello-config
+    encrypted: false
+    entries:
+      - name: greeting.message
+        value: Hello from PROD 🚀
