@@ -2,7 +2,7 @@
     <Set>
         <Payload contentType="application/json">
             {
-              "message": "Hello from feature Branch and updated the piepeline and mmade it dynamic !"
+              "message": "Hello from feature Branch and updated !"
             }
         </Payload>
         <StatusCode>200</StatusCode>
