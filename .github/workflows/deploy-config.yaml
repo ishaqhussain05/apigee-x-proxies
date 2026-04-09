@@ -1,4 +1,4 @@
-name: Deploy Apigee Config (KVM + Target Server)
+name: Deploy Apigee Config
 
 on:
   push:
@@ -10,102 +10,51 @@ on:
 jobs:
   deploy-config:
     runs-on: ubuntu-latest
-
     permissions:
       id-token: write
       contents: read
 
     steps:
-      # 📥 Checkout
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 🔐 Authenticate (WIF)
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      # ☁️ Setup gcloud
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # 🔑 Get Access Token
+      - name: Install apigeecli
+        run: |
+          curl -L https://raw.githubusercontent.com/apigee/apigeecli/main/downloadLatest.sh | sh
+          echo "$HOME/.apigeecli/bin" >> $GITHUB_PATH
+
       - name: Get Access Token
-        run: echo "ACCESS_TOKEN=$(gcloud auth print-access-token)" >> $GITHUB_ENV
+        run: echo "TOKEN=$(gcloud auth print-access-token)" >> $GITHUB_ENV
 
-      # =========================
-      # 🟢 NON-ENCRYPTED KVM
-      # =========================
-
-      - name: Create KVM (hello-config)
+      - name: Inject Secrets
         run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps" \
-            -d '{"name":"hello-config"}' \
-          || echo "KVM already exists"
+          sed -i "s|#{API_KEY}#|${{ secrets.API_KEY }}|g" apigee-config/prod/kvms.json
+          sed -i "s|#{DB_PASSWORD}#|${{ secrets.DB_PASSWORD }}|g" apigee-config/prod/kvms.json
 
-      - name: Add KVM Entry (greeting)
+      - name: Deploy KVMs
         run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps/hello-config/entries" \
-            -d '{"name":"greeting.message","value":"Hello from PROD 🚀"}' \
-          || echo "Entry exists"
+          apigeecli kvms import \
+            --org    ${{ vars.APIGEE_ORG }} \
+            --env    ${{ vars.APIGEE_ENV }} \
+            --token  $TOKEN \
+            --folder apigee-config/prod
 
-      - name: Add KVM Entry (timeout)
+      - name: Deploy Target Servers
         run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps/hello-config/entries" \
-            -d '{"name":"backend.timeout","value":"30"}' \
-          || echo "Entry exists"
+          apigeecli targetservers import \
+            --org    ${{ vars.APIGEE_ORG }} \
+            --env    ${{ vars.APIGEE_ENV }} \
+            --token  $TOKEN \
+            --folder apigee-config/prod
 
-      # =========================
-      # 🔐 ENCRYPTED KVM
-      # =========================
-
-      - name: Create Encrypted KVM (hello-secrets)
-        run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps" \
-            -d '{"name":"hello-secrets","encrypted":true}' \
-          || echo "Encrypted KVM already exists"
-
-      - name: Add Secret Entry (api key)
-        run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/keyvaluemaps/hello-secrets/entries" \
-            -d '{"name":"api.key","value":"super-secret-key-123"}' \
-          || echo "Secret exists"
-
-      # =========================
-      # 🌐 TARGET SERVER
-      # =========================
-
-      - name: Create Target Server
-        run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/targetservers" \
-            -d '{
-              "name":"hello-backend-ts",
-              "host":"mocktarget.apigee.net",
-              "port":443,
-              "isEnabled":true
-            }' \
-          || echo "Target server already exists"
-
-      # ✅ DONE
       - name: Done
-        run: echo "✅ Config Deployment Completed"
+        run: echo "✅ Config deployed successfully"
