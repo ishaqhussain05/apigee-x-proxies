@@ -1,22 +1,18 @@
-{
-  "environmentKeyValueMaps": {
-    "eval": [
-      {
-        "name": "hello-config",
-        "encrypted": false,
-        "entry": [
-          { "name": "greeting.message", "value": "Hello from PROD 🚀" },
-          { "name": "api.version",      "value": "v1" }
-        ]
-      },
-      {
-        "name": "hello-secrets",
-        "encrypted": true,
-        "entry": [
-          { "name": "api.key",     "value": "#{API_KEY}#" },
-          { "name": "db.password", "value": "#{DB_PASSWORD}#" }
-        ]
-      }
+[
+  {
+    "name": "hello-config",
+    "encrypted": false,
+    "entry": [
+      { "name": "greeting.message", "value": "Hello from PROD 🚀" },
+      { "name": "api.version", "value": "v1" }
+    ]
+  },
+  {
+    "name": "hello-secrets",
+    "encrypted": true,
+    "entry": [
+      { "name": "api.key", "value": "#{API_KEY}#" },
+      { "name": "db.password", "value": "#{DB_PASSWORD}#" }
     ]
   }
-}
+]

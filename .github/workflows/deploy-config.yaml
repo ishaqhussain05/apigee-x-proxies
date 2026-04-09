@@ -35,18 +35,43 @@ jobs:
       - name: Get Access Token
         run: echo "TOKEN=$(gcloud auth print-access-token)" >> $GITHUB_ENV
 
-      - name: Inject Secrets
+      - name: Inject Secrets into kvms.json
         run: |
           sed -i "s|#{API_KEY}#|${{ secrets.API_KEY }}|g" apigee-config/prod/kvms.json
           sed -i "s|#{DB_PASSWORD}#|${{ secrets.DB_PASSWORD }}|g" apigee-config/prod/kvms.json
 
+      # Reads everything from kvms.json — pipeline never needs to change
       - name: Deploy KVMs
         run: |
-          apigeecli kvms import \
-            -o ${{ vars.APIGEE_ORG }} \
-            -f apigee-config/prod/kvms.json \
-            -t $TOKEN
+          BASE="https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}"
+          KVM_COUNT=$(jq length apigee-config/prod/kvms.json)
 
+          for i in $(seq 0 $((KVM_COUNT - 1))); do
+            KVM_NAME=$(jq -r ".[$i].name" apigee-config/prod/kvms.json)
+            ENCRYPTED=$(jq -r ".[$i].encrypted" apigee-config/prod/kvms.json)
+
+            echo "Creating KVM: $KVM_NAME (encrypted: $ENCRYPTED)"
+            curl -s -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              "$BASE/keyvaluemaps" \
+              -d "{\"name\":\"$KVM_NAME\",\"encrypted\":$ENCRYPTED}" || true
+
+            ENTRY_COUNT=$(jq ".[$i].entry | length" apigee-config/prod/kvms.json)
+            for j in $(seq 0 $((ENTRY_COUNT - 1))); do
+              ENTRY_NAME=$(jq -r ".[$i].entry[$j].name" apigee-config/prod/kvms.json)
+              ENTRY_VALUE=$(jq -r ".[$i].entry[$j].value" apigee-config/prod/kvms.json)
+
+              echo "  Adding entry: $ENTRY_NAME"
+              curl -s -X POST \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                "$BASE/keyvaluemaps/$KVM_NAME/entries" \
+                -d "{\"name\":\"$ENTRY_NAME\",\"value\":\"$ENTRY_VALUE\"}" || true
+            done
+          done
+
+      # Reads everything from targetservers.json — pipeline never needs to change
       - name: Deploy Target Servers
         run: |
           apigeecli targetservers import \
