@@ -1,5 +1,0 @@
-targetServers:
-  - name: hello-backend-ts
-    host: api.myrealbackend.com
-    port: 443
-    isEnabled: true
