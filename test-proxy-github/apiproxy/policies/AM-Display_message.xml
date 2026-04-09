@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage continueOnError="false" enabled="true" name="AM-Display_message">
+  <DisplayName>AM-Display_message</DisplayName>
+  <Set>
+    <Payload contentType="application/json">
+            {
+              "message": "Hello from feature Branch and  updated yaml file 1 !"
+            }
+        </Payload>
+    <StatusCode>200</StatusCode>
+  </Set>
+  <AssignTo createNew="false" type="response"/>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <AssignTo createNew="false" transport="http" type="request"/>
+</AssignMessage>
