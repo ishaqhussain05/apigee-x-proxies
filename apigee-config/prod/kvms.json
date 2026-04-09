@@ -12,7 +12,8 @@
     "encrypted": true,
     "entry": [
       { "name": "api.key", "value": "#{API_KEY}#" },
-      { "name": "db.password", "value": "#{DB_PASSWORD}#" }
+      { "name": "db.password", "value": "#{DB_PASSWORD}#" },
+      { "name": "ishaqpassword", "value": "ishaq100" }
     ]
   }
 ]
