@@ -44,7 +44,6 @@ jobs:
         run: |
           apigeecli kvms import \
             -o ${{ vars.APIGEE_ORG }} \
-            -e ${{ vars.APIGEE_ENV }} \
             -f apigee-config/prod/kvms.json \
             -t $TOKEN
 
