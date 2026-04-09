@@ -4,7 +4,7 @@
   <Set>
     <Payload contentType="application/json">
             {
-              "message": "Hello from feature Branch and  updated yaml file 1 !"
+              "message": "Hello from from new proxy deployment :| "
             }
         </Payload>
     <StatusCode>200</StatusCode>
