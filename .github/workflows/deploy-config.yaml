@@ -52,7 +52,7 @@ jobs:
           apigeecli targetservers import \
             -o ${{ vars.APIGEE_ORG }} \
             -e ${{ vars.APIGEE_ENV }} \
-            -f apigee-config/prod \
+            -f apigee-config/prod/targetservers.json \
             -t $TOKEN
 
       - name: Done
