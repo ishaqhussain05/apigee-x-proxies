@@ -16,17 +16,24 @@ jobs:
       contents: read
 
     steps:
-      # 📥 Checkout
+      # 📥 Checkout (FIXED)
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # 🔥 IMPORTANT FIX
 
-      # 🔍 Detect Proxy Folder (FIXED VERSION)
+      # 🔍 Detect Proxy Folder (SAFE VERSION)
       - name: Detect Proxy Folder
-        id: detect
         run: |
           echo "Detecting changed proxy..."
 
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          # Check if previous commit exists
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          else
+            echo "⚠️ No previous commit, using all files"
+            CHANGED_FILES=$(git ls-files)
+          fi
 
           echo "Changed files:"
           echo "$CHANGED_FILES"
@@ -52,13 +59,13 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # 🔧 Install tools
+      # 🔧 Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y zip jq
 
-      # 📦 Zip proxy dynamically
+      # 📦 Zip Proxy (Dynamic)
       - name: Zip Apigee Proxy
         run: |
           echo "Zipping proxy: $PROXY_DIR"
@@ -89,9 +96,14 @@ jobs:
           fi
 
           REVISION=$(echo "$RESPONSE" | jq -r '.revision')
+          if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
+            echo "❌ Failed to get revision"
+            exit 1
+          fi
+
           echo "✅ Imported Revision: $REVISION"
 
-          # ── UNDEPLOY OLD ───────────────────────
+          # ── UNDEPLOY OLD REVISIONS ─────────────
           DEPLOYED=$(curl -s \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/$PROXY_DIR/deployments")
@@ -107,7 +119,7 @@ jobs:
             fi
           done
 
-          # ── DEPLOY NEW ─────────────────────────
+          # ── DEPLOY NEW REVISION ───────────────
           DEPLOY_RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/$PROXY_DIR/revisions/$REVISION/deployments?override=true")
@@ -121,4 +133,7 @@ jobs:
             exit 1
           fi
 
-          echo "🚀 Deployment successful for $PROXY_DIR (Revision $REVISION)"
+          DEPLOY_STATE=$(echo "$DEPLOY_RESPONSE" | jq -r '.state // empty')
+          echo "Deployment state: $DEPLOY_STATE"
+
+          echo "🚀 Deployment successful — $PROXY_DIR (Revision $REVISION)"
