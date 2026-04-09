@@ -6,7 +6,7 @@
       { "name": "greeting.message", "value": "Hello from PROD 🚀" },
       { "name": "api.version",      "value": "v1" },
       { "name": "api",      "value": "v2" },
-      { "nzme": "key", "values": "value"}
+      { "nzme": "key", "values": "value-value2"}
     ]
   },
   {
