@@ -4,7 +4,8 @@
     "encrypted": false,
     "entry": [
       { "name": "greeting.message", "value": "Hello from PROD 🚀" },
-      { "name": "api.version",      "value": "v1" }
+      { "name": "api.version",      "value": "v1" },
+      { "name": "api",      "value": "v2" }
     ]
   },
   {
