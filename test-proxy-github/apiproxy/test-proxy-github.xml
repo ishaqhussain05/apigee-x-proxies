@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy revision="1" name="test-proxy-github">
+  <DisplayName/>
+  <Description/>
+  <CreatedAt>1775726473253</CreatedAt>
+  <LastModifiedAt>1775727013044</LastModifiedAt>
+  <BasePaths>/test-proxy-github</BasePaths>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+  </TargetEndpoints>
+  <Policies>
+    <Policy>AM-Display_message</Policy>
+    <Policy>Q-quota_limit</Policy>
+  </Policies>
+</APIProxy>
