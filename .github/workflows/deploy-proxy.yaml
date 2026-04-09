@@ -10,7 +10,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       id-token: write
       contents: read
@@ -48,10 +47,9 @@ jobs:
       - name: Deploy to Apigee
         run: |
           echo "Starting deployment..."
-
           ACCESS_TOKEN=$(gcloud auth print-access-token)
 
-          # IMPORT
+          # ── IMPORT ──────────────────────────────────────────────
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/octet-stream" \
@@ -61,22 +59,58 @@ jobs:
           echo "Import Response:"
           echo "$RESPONSE"
 
-          # EXTRACT REVISION
-          REVISION=$(echo "$RESPONSE" | jq -r '.revision')
-
-          if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
-            echo "Failed to get revision ❌"
+          # Check for import errors
+          IMPORT_ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
+          if [ -n "$IMPORT_ERROR" ]; then
+            echo "❌ Import failed: $IMPORT_ERROR"
             exit 1
           fi
 
-          echo "Revision: $REVISION"
+          # ── EXTRACT REVISION ─────────────────────────────────────
+          REVISION=$(echo "$RESPONSE" | jq -r '.revision')
+          if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
+            echo "❌ Failed to get revision"
+            exit 1
+          fi
+          echo "✅ Imported Revision: $REVISION"
 
-          # DEPLOY
+          # ── UNDEPLOY ANY EXISTING REVISION ───────────────────────
+          echo "Checking for currently deployed revisions..."
+          DEPLOYED=$(curl -s \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/deployments")
+
+          echo "Current deployments:"
+          echo "$DEPLOYED"
+
+          DEPLOYED_REVISIONS=$(echo "$DEPLOYED" | jq -r '.deployments[].revision // empty' 2>/dev/null || echo "")
+
+          for OLD_REV in $DEPLOYED_REVISIONS; do
+            if [ "$OLD_REV" != "$REVISION" ]; then
+              echo "Undeploying old revision: $OLD_REV"
+              curl -s -X DELETE \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$OLD_REV/deployments"
+              echo "✅ Undeployed revision $OLD_REV"
+            fi
+          done
+
+          # ── DEPLOY NEW REVISION (override=true) ──────────────────
+          echo "Deploying revision $REVISION..."
           DEPLOY_RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
-            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments")
+            "https://apigee.googleapis.com/v1/organizations/${{ vars.APIGEE_ORG }}/environments/${{ vars.APIGEE_ENV }}/apis/hello-api/revisions/$REVISION/deployments?override=true&sequencedRollout=true")
 
           echo "Deploy Response:"
           echo "$DEPLOY_RESPONSE"
 
-          echo "Deployment successful 🚀"
+          # ── CHECK DEPLOY ERRORS ───────────────────────────────────
+          DEPLOY_ERROR=$(echo "$DEPLOY_RESPONSE" | jq -r '.error.message // empty')
+          if [ -n "$DEPLOY_ERROR" ]; then
+            echo "❌ Deployment failed: $DEPLOY_ERROR"
+            exit 1
+          fi
+
+          DEPLOY_STATE=$(echo "$DEPLOY_RESPONSE" | jq -r '.state // empty')
+          echo "Deployment state: $DEPLOY_STATE"
+          echo "🚀 Deployment successful — Revision $REVISION is live!"
