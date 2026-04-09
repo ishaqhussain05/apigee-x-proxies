@@ -43,18 +43,17 @@ jobs:
       - name: Deploy KVMs
         run: |
           apigeecli kvms import \
-            --org    ${{ vars.APIGEE_ORG }} \
-            --env    ${{ vars.APIGEE_ENV }} \
-            --token  $TOKEN \
-            --folder apigee-config/prod
+            -o ${{ vars.APIGEE_ORG }} \
+            -f apigee-config/prod \
+            -t $TOKEN
 
       - name: Deploy Target Servers
         run: |
           apigeecli targetservers import \
-            --org    ${{ vars.APIGEE_ORG }} \
-            --env    ${{ vars.APIGEE_ENV }} \
-            --token  $TOKEN \
-            --folder apigee-config/prod
+            -o ${{ vars.APIGEE_ORG }} \
+            -e ${{ vars.APIGEE_ENV }} \
+            -f apigee-config/prod \
+            -t $TOKEN
 
       - name: Done
         run: echo "✅ Config deployed successfully"
